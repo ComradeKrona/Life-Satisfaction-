@@ -1,4 +1,5 @@
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def readWEOFile():
@@ -60,6 +61,12 @@ def importDataFiles():
     #Dropping the Columns/Row that are useless
     dataFrame = dataFrame.drop(189)
 
+    #Have to make sure that all of the GDP are stored as numbers, so that they can be plotted
+    for x in range(0, len(dataFrame.index)):
+        for y in range(0, len(dataFrame.columns)):
+            dataFrame.iat[x, y] = float(str(dataFrame.iat[x, y]).replace(",",""))
+
+
     #Writes the single DataFrame into a file for easier acess
     dataFrame.to_csv("combinedData.csv", index=False)
 
@@ -96,10 +103,26 @@ def cleanUpData():
 
     print(dataFrame.head())
 
+    return dataFrame
+
+def graphingTheData(dataframe):
+    worldData = dataframe
+
+    print(list(worldData.columns))
+    print(list(worldData.index))
+
+    worldData.plot.scatter(x='Gross Domestic Product per Capita (USD)', y='Life satisfaction - Total (AVSCORE)', color='DarkBlue')
+
+    for index in range(0, len(worldData.index)):
+        plt.annotate(worldData.at[list(worldData.index)[index], 'Country (Full Name)'], (worldData.at[list(worldData.index)[index], 'Gross Domestic Product per Capita (USD)'], worldData.at[list(worldData.index)[index], 'Life satisfaction - Total (AVSCORE)']))
+
+    plt.show()
+
+
 def main():
     print()
-    #importDataFiles()
-    cleanUpData()
+    dataSet = cleanUpData()
+    graphingTheData(dataSet)
 
 
 if __name__ == "__main__":
