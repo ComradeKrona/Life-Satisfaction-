@@ -63,12 +63,12 @@ def importDataFiles():
 
     #Have to make sure that all of the GDP are stored as numbers, so that they can be plotted
     for x in range(0, len(dataFrame.index)):
-        for y in range(0, len(dataFrame.columns)):
+        for y in range(1, len(dataFrame.columns)):
             dataFrame.iat[x, y] = float(str(dataFrame.iat[x, y]).replace(",",""))
 
 
     #Writes the single DataFrame into a file for easier acess
-    dataFrame.to_csv("combinedData.csv", index=False)
+    dataFrame.to_csv("combinedData(Backup).csv", index=False)
 
     return dataFrame
 
@@ -118,9 +118,15 @@ def graphingTheData(dataframe):
 
     plt.show()
 
+    #What I Still Need to Do
+    #Add all Nan Values to Make them a Median Value
+    #Make sure there aren't outliers (using IQR for GDP and Life Satisfaction)
+    #User input function
+
 
 def main():
     print()
+    #importDataFiles()
     dataSet = cleanUpData()
     graphingTheData(dataSet)
 
