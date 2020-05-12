@@ -81,6 +81,7 @@ def readCleanCSVFile():
 
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
 from sklearn.compose import ColumnTransformer
 def cleanUpData():
     dataFrame = readCleanCSVFile()
@@ -107,30 +108,65 @@ def cleanUpData():
 
     print("Total Counrties: ", len(list(dataFrame.index)), "\n")
 
+    removeList = []
+    GDPIQR = dataFrame["Gross Domestic Product per Capita (USD)"].quantile(.75) - dataFrame["Gross Domestic Product per Capita (USD)"].quantile(.25)
+    GDPmedian = dataFrame["Gross Domestic Product per Capita (USD)"].median()
+
+    for index in dataFrame.index:
+        GDP = float(dataFrame.at[index, "Gross Domestic Product per Capita (USD)"])
+
+        if GDP > (GDPmedian + GDPIQR) or GDP < (GDPmedian - GDPIQR):
+            removeList.insert(0, index)
+
+    for item in removeList:
+        dataFrame = dataFrame.drop([item])
+
+    removeList = []
+    LSIQR = dataFrame["Life satisfaction - Total (AVSCORE)"].quantile(.75) - dataFrame[
+        "Life satisfaction - Total (AVSCORE)"].quantile(.25)
+    LSmedian = dataFrame["Life satisfaction - Total (AVSCORE)"].median()
+
+    for index in dataFrame.index:
+        LS = float(dataFrame.at[index, "Life satisfaction - Total (AVSCORE)"])
+
+        if LS > (LSmedian + LSIQR) or LS < (LSmedian - LSIQR):
+            removeList.insert(0, index)
+
+    for item in removeList:
+        dataFrame = dataFrame.drop([item])
+
+    print("Total Counrties: ", len(list(dataFrame.index)), "\n")
+
+    #graphingTheData(dataFrame)
+
+    return dataFrame
+
+def pipeline(dataFrame):
     columnList = list(dataFrame.columns)
     columnList.remove("Country (Full Name)")
 
-    names = dataFrame["Country (Full Name)"].tolist()
-
-    num_pipeline = Pipeline([('imputer', SimpleImputer(strategy="median"))])
+    num_pipeline = Pipeline([('imputer', SimpleImputer(strategy="median"))
+                             #   , ('std_scaler', StandardScaler())
+                             ])
     full_pipeline = ColumnTransformer([("num", num_pipeline, columnList)])
+    transformedPipeline = full_pipeline.fit_transform(dataFrame)
+    #transformedPipeline.to_csv("fittedData.csv", index=False)
 
-    dataFrameFilledIn = pd.DataFrame(data=full_pipeline.fit_transform(dataFrame), columns=columnList)
-    dataFrameFilledIn.insert(0, "Country (Full Name)", names)
+    return transformedPipeline
 
-    dataFrameFilledIn.to_csv("fittedData(Backup).csv", index=False)
-
-    return dataFrameFilledIn
-
-def graphingTheData(dataframe):
+def graphingTheData(dataframe, xList=None, yList=None, line=None):
     worldData = dataframe
 
-    print(len(worldData.index))
-    print(list(worldData.columns))
-    print(list(worldData.index))
-
+    #Add given Data Points
     worldData.plot.scatter(x='Gross Domestic Product per Capita (USD)', y='Life satisfaction - Total (AVSCORE)',
                            color='DarkBlue')
+
+    #Add linearRegressionLine
+
+    #Add predicted values
+    #for index in range(0, len(xList)):
+
+
 
     for index in range(0, len(worldData.index)):
         plt.annotate(worldData.at[list(worldData.index)[index], 'Country (Full Name)'], (
@@ -140,16 +176,47 @@ def graphingTheData(dataframe):
     plt.show()
 
     # What I Still Need to Do
-    # Make sure there aren't outliers (using IQR for GDP and Life Satisfaction)
     # User input function
 
+from sklearn.linear_model import LinearRegression
+def linearRegression(dataFrame, GDPValues):
+    print(GDPValues)
+
+    columnList = list(dataFrame.columns)
+    columnList.remove("Country (Full Name)")
+
+    num_pipeline = Pipeline([('imputer', SimpleImputer(strategy="median"))
+                             #   , ('std_scaler', StandardScaler())
+                             ])
+    full_pipeline = ColumnTransformer([("num", num_pipeline, columnList)])
+    transformedPipeline = full_pipeline.fit_transform(dataFrame)
+
+    Cypriot = 27000
+
+    linearRegression = LinearRegression()
+    linearRegression.fit(transformedPipeline, GDPValues)
+
+    prediction = linearRegression.predict(full_pipeline.fit(Cypriot))
+    print("Predictions:", str(prediction))
+
+    return prediction
+
+def arrayToDataFrame(array, columnList, names):
+    dataFrameFilledIn = pd.DataFrame(data=array, columns=columnList)
+    dataFrameFilledIn.insert(0, "Country (Full Name)", names)
+
+    return dataFrameFilledIn
 
 def main():
     print()
     # importDataFiles()
     dataSet = cleanUpData()
-    graphingTheData(dataSet)
 
+    columnList = list(dataSet.columns)
+    names = dataSet["Country (Full Name)"].tolist()
+    GDPValues = list(dataSet["Gross Domestic Product per Capita (USD)"])
+
+    linearRegression(pipeline(dataSet), GDPValues)
 
 if __name__ == "__main__":
     main()
