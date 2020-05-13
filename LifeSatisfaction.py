@@ -191,15 +191,28 @@ def linearRegression(dataFrame, GDPValues):
     full_pipeline = ColumnTransformer([("num", num_pipeline, columnList)])
     transformedPipeline = full_pipeline.fit_transform(dataFrame)
 
+    rowBefore = len(list(dataFrame.index))
+
     Cypriot = 27000
+
+    dataFrame = dataFrame.append({'Gross Domestic Product per Capita (USD)': Cypriot}, ignore_index=True)
+
+    rowAfter = len(list(dataFrame.index))
+
+    print(dataFrame.tail())
 
     linearRegression = LinearRegression()
     linearRegression.fit(transformedPipeline, GDPValues)
 
-    prediction = linearRegression.predict(full_pipeline.fit(Cypriot))
-    print("Predictions:", str(prediction))
 
-    return prediction
+    for index in range(rowBefore, rowAfter):
+        prediction = linearRegression.predict(
+            full_pipeline.fit(
+                dataFrame.loc[dataFrame['Gross Domestic Product per Capita (USD)'] == Cypriot]
+            ))
+        print("Predictions:", str(prediction))
+
+    #return prediction
 
 def arrayToDataFrame(array, columnList, names):
     dataFrameFilledIn = pd.DataFrame(data=array, columns=columnList)
@@ -216,7 +229,7 @@ def main():
     names = dataSet["Country (Full Name)"].tolist()
     GDPValues = list(dataSet["Gross Domestic Product per Capita (USD)"])
 
-    linearRegression(pipeline(dataSet), GDPValues)
+    linearRegression(dataSet, GDPValues)
 
 if __name__ == "__main__":
     main()
