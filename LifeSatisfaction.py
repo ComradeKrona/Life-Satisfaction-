@@ -20,6 +20,7 @@ def readWEOFile():
 
     return worldData
 
+
 def importDataFiles():
     # Create the main DataFrame
     dataFrame = readWEOFile()
@@ -75,22 +76,19 @@ def importDataFiles():
 
     return dataFrame
 
+
 # Reads the combinedDataFile for easier access
 def readCombinedCSVFile():
     return pd.read_csv("combinedData.csv")
 
 
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler
-from sklearn.compose import ColumnTransformer
 def cleanUpCombinedData():
     dataFrame = readCombinedCSVFile()
 
     removeList = []
 
-    #Check each row to see if more than half of its columns are filled with "NaN" or blank values
-    #If so, the row is add to the removeList (latered to be dropped from the dataFrame)
+    # Check each row to see if more than half of its columns are filled with "NaN" or blank values
+    # If so, the row is add to the removeList (latered to be dropped from the dataFrame)
     for rowIndex in dataFrame.index:
         totalNan = 0
 
@@ -105,11 +103,11 @@ def cleanUpCombinedData():
     for item in removeList:
         dataFrame = dataFrame.drop(item)
 
-    #Making sure the removeList is now completely empty
+    # Making sure the removeList is now completely empty
     removeList = []
 
-    #Detects for outliers in the GDP column using the IQR
-    #If there is an outlier, the program will drop that row
+    # Detects for outliers in the GDP column using the IQR
+    # If there is an outlier, the program will drop that row
     GDPIQR = dataFrame["Gross Domestic Product per Capita (USD)"].quantile(.75) - dataFrame[
         "Gross Domestic Product per Capita (USD)"].quantile(.25)
     GDPmedian = dataFrame["Gross Domestic Product per Capita (USD)"].median()
@@ -123,11 +121,11 @@ def cleanUpCombinedData():
     for item in removeList:
         dataFrame = dataFrame.drop([item])
 
-    #Again, making sure the removeList is now completely empty
+    # Again, making sure the removeList is now completely empty
     removeList = []
 
-    #Detects for outliers in the LS (ACSCORE) column using the IQR
-    #If there is an outlier, the program will drop that row
+    # Detects for outliers in the LS (ACSCORE) column using the IQR
+    # If there is an outlier, the program will drop that row
     LSIQR = dataFrame["Life satisfaction - Total (AVSCORE)"].quantile(.75) - dataFrame[
         "Life satisfaction - Total (AVSCORE)"].quantile(.25)
     LSmedian = dataFrame["Life satisfaction - Total (AVSCORE)"].median()
@@ -141,76 +139,54 @@ def cleanUpCombinedData():
     for item in removeList:
         dataFrame = dataFrame.drop([item])
 
-    #Saves the data to a CSV file for easier access
+    # Saves the data to a CSV file for easier access
     dataFrame.to_csv("filteredData.csv", index=False)
 
     return dataFrame
 
+
 def readCleanedCombinedCSVFile():
     return pd.read_csv("filteredData.csv")
 
+def singleVaribleModel(dataFrame):
+    removeList = []
 
-def pipeline(dataFrame):
-    columnList = list(dataFrame.columns)
-    columnList.remove("Country (Full Name)")
+    for index in range(0, len(list(dataFrame.columns))):
+        if str(list(dataFrame.columns)[index]) != "Life satisfaction - Total (AVSCORE)" and str(list(dataFrame.columns)[
+            index]) != "Gross Domestic Product per Capita (USD)" and str(list(dataFrame.columns)[
+            index]) != "Country (Full Name)":
+            removeList.append(list(dataFrame.columns)[index])
+
+    for item in removeList:
+        dataFrame = dataFrame.drop(item, axis=1)
+
+    return dataFrame
+
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+from sklearn.compose import ColumnTransformer
+def linearRegression(dataFrame, xList=None):
+    print(list(dataFrame.columns))
+
+    resultValues = list(dataFrame["Life satisfaction - Total (AVSCORE)"])
+    temptDataFrame = dataFrame.drop(["Country (Full Name)", "Life satisfaction - Total (AVSCORE)"], axis=1)
+
+    print(list(temptDataFrame.columns))
+
+    temptColumnList = list(temptDataFrame.columns)
 
     num_pipeline = Pipeline([('imputer', SimpleImputer(strategy="median"))
                              #   , ('std_scaler', StandardScaler())
                              ])
-    full_pipeline = ColumnTransformer([("num", num_pipeline, columnList)])
-    transformedPipeline = full_pipeline.fit_transform(dataFrame)
-    # transformedPipeline.to_csv("fittedData.csv", index=False)
+    full_pipeline = ColumnTransformer([("num", num_pipeline, temptColumnList)])
 
-    return transformedPipeline
+    transformedPipeline = full_pipeline.fit_transform(temptDataFrame)
 
+    Cypriot = 27000
 
-def graphingTheData(dataframe, xList=None, yList=None, line=None):
-    worldData = dataframe
-
-    # Add given Data Points
-    worldData.plot.scatter(x='Gross Domestic Product per Capita (USD)', y='Life satisfaction - Total (AVSCORE)',
-                           color='DarkBlue')
-
-    # Add linearRegressionLine
-
-    # Add predicted values
-    # for index in range(0, len(xList)):
-
-    for index in range(0, len(worldData.index)):
-        plt.annotate(worldData.at[list(worldData.index)[index], 'Country (Full Name)'], (
-            worldData.at[list(worldData.index)[index], 'Gross Domestic Product per Capita (USD)'],
-            worldData.at[list(worldData.index)[index], 'Life satisfaction - Total (AVSCORE)']))
-
-    GDPValues = max(list(worldData["Gross Domestic Product per Capita (USD)"]))
-
-    plt.plot(list(worldData["Gross Domestic Product per Capita (USD)"]),
-             list(worldData["Life satisfaction - Total (AVSCORE)"]), color="DarkRed")
-
-    plt.title('Life Satisfaction V GDP')
-    plt.xlabel('GDP per Captia')
-    plt.ylabel('Life Satisfaction - Total (AVSCORE)')
-
-    plt.show()
-
-    # What I Still Need to Do
-    # User input function
-
-
-from sklearn.linear_model import LinearRegression
-
-
-def linearRegression(dataFrame, GDPValues, xList=None):
-    print(GDPValues)
-
-    columnList = list(dataFrame.columns)
-    columnList.remove("Country (Full Name)")
-
-    num_pipeline = Pipeline([('imputer', SimpleImputer(strategy="median"))
-                                , ('std_scaler', StandardScaler())
-                             ])
-    full_pipeline = ColumnTransformer([("num", num_pipeline, columnList)])
-    transformedPipeline = full_pipeline.fit_transform(dataFrame)
-
+    """
     lsValues = list(dataFrame["Life satisfaction - Total (AVSCORE)"])
 
     rowBefore = len(list(dataFrame.index))
@@ -224,22 +200,78 @@ def linearRegression(dataFrame, GDPValues, xList=None):
     print(dataFrame.tail())
 
     print("LSValues: ", lsValues)
+    """
 
     linearRegression = LinearRegression()
-    linearRegression.fit(transformedPipeline, lsValues)
+    linearRegression.fit(X=transformedPipeline, y=resultValues)
 
-    for index in range(rowBefore, rowAfter):
-        prediction = linearRegression.predict(
-            full_pipeline.transform(
-                dataFrame.loc[dataFrame['Gross Domestic Product per Capita (USD)'] == Cypriot]
-            ))
-        print("Predictions:", str(prediction))
+    ylist = []
 
-    print(linearRegression.coef_)
-    print(linearRegression.intercept_)
+    for item in xList:
+        ylist.append(linearRegression.predict(full_pipeline.fit_transform(pd.DataFrame(pd.np.array([float(item)]), columns=temptColumnList))))
 
-    return prediction, linearRegression
+    graphingTheData(dataFrame, xList, ylist, linearRegression)
 
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
+import matplotlib.transforms as mtransforms
+def graphingTheData(dataframe, xList=None, yList=None, model=None):
+    font = {'family': 'normal',
+            'size': 8}
+
+    YSHIFT = .03
+    XSHIFT = 150
+
+    plt.rc('font', **font)
+
+    fig, ax = plt.subplots()
+    ax.scatter(dataframe["Gross Domestic Product per Capita (USD)"], dataframe["Life satisfaction - Total (AVSCORE)"], c='Blue')
+
+    for index in range(0, len(dataframe.index)):
+        plt.annotate(dataframe.at[list(dataframe.index)[index], 'Country (Full Name)'], (
+            dataframe.at[list(dataframe.index)[index], 'Gross Domestic Product per Capita (USD)'] + XSHIFT,
+            dataframe.at[list(dataframe.index)[index], 'Life satisfaction - Total (AVSCORE)'] + YSHIFT))
+
+    #Line is currently broken
+   # line = mlines.Line2D([0, (model.intercept_ + 0 * model.coef_)], [54000, (model.intercept_ + 54000 * model.coef_)], color='Green')
+
+    ax.scatter(xList, yList, c="Red")
+
+    for index in range(0, len(xList)):
+        plt.annotate(("(" + str(xList[index]) +", " + str(yList[index]) +")"), (xList[index] + XSHIFT, yList[index] + YSHIFT))
+
+   # transform = ax.transAxes
+    #line.set_transform(transform)
+    #ax.add_line(line)
+
+    plt.title('Comparing a country\'s Life Satisfaction to their Gross Domestic Product per Capita')
+    plt.xlabel('Gross Domestic Product per Capita (USD)')
+    plt.ylabel('Life satisfaction - Total (AVSCORE)')
+
+    plt.show()
+
+    """
+
+    # Add given Data Points
+    #plt.plot.scatter(x='Gross Domestic Product per Capita (USD)', y='Life satisfaction - Total (AVSCORE)',
+                           color='DarkBlue')
+
+    #Add Names to given Data Points
+    
+
+    #Add Regression line
+
+    #Add predicted Data Points
+    plt.plot.scatter(x=xList, y=yList, color='Black')
+
+    plt.title('Life Satisfaction V GDP')
+    plt.xlabel('GDP per Captia')
+    plt.ylabel('Life Satisfaction - Total (AVSCORE)')
+
+    plt.show()
+
+    """
 
 def arrayToDataFrame(array, columnList, names):
     dataFrameFilledIn = pd.DataFrame(data=array, columns=columnList)
@@ -247,12 +279,14 @@ def arrayToDataFrame(array, columnList, names):
 
     return dataFrameFilledIn
 
+
 def main():
-    print("Input can only take integers and floats. You can add multiple numbers at a time by seperating them with commas")
+    print(
+        "Input can only take integers and floats. You can add multiple numbers at a time by seperating them with commas")
     print("Example: \"50000, 42000, 1300.0\"", "\n")
 
     stopLoop = False
-    xList = []
+    xList = [27000]
 
     print("Input integers and floats to feed into the model. Type \"Predict\" or \"Run\" to continue")
     while not stopLoop:
@@ -285,7 +319,11 @@ def main():
         else:
             print("\"" + str(booleanValue) + "\" is not an acceptable input. Please try again.", "\n")
 
-    dataSet = readCleanedCombinedCSVFile()
+    dataSet = singleVaribleModel(readCleanedCombinedCSVFile())
+
+    linearRegression(dataSet, xList)
+
+    """
     columnList = list(dataSet.columns)
     names = dataSet["Country (Full Name)"].tolist()
     GDPValues = list(dataSet["Gross Domestic Product per Capita (USD)"])
@@ -300,6 +338,7 @@ def main():
         print("There")
     else:
         print("Hello")
-
+        
+    """
 if __name__ == "__main__":
     main()
