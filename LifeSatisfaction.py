@@ -1,8 +1,5 @@
-import numpy
 import pandas as pd
-import matplotlib.pyplot as plt
 from pip._vendor.distlib.compat import raw_input
-
 
 def readWEOFile():
     print("Reading \"WEO_Data.csv\"")
@@ -20,7 +17,6 @@ def readWEOFile():
     print(worldData.head(), "\n", "\n", worldData.tail(), "\n")
 
     return worldData
-
 
 def importDataFiles():
     # Create the main DataFrame
@@ -77,11 +73,9 @@ def importDataFiles():
 
     return dataFrame
 
-
-# Reads the combinedDataFile for easier access
 def readCombinedCSVFile():
+    # Reads the combinedDataFile for easier access
     return pd.read_csv("combinedData.csv")
-
 
 def cleanUpCombinedData():
     dataFrame = readCombinedCSVFile()
@@ -145,13 +139,15 @@ def cleanUpCombinedData():
 
     return dataFrame
 
-
 def readCleanedCombinedCSVFile():
+    # Reads the filteredData file for easier access
     return pd.read_csv("filteredData.csv")
 
 def singleVaribleModel(dataFrame):
+    #Prepares the single variable dataFrame
     removeList = []
 
+    #Drops all columns expect for name, GDP and Life Satisfaction total
     for index in range(0, len(list(dataFrame.columns))):
         if str(list(dataFrame.columns)[index]) != "Life satisfaction - Total (AVSCORE)" and str(list(dataFrame.columns)[
             index]) != "Gross Domestic Product per Capita (USD)" and str(list(dataFrame.columns)[
@@ -169,45 +165,57 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 from sklearn.compose import ColumnTransformer
 def linearRegression(dataFrame, xList=None):
+    #Results late to give the linear regression model
     resultValues = list(dataFrame["Life satisfaction - Total (AVSCORE)"])
+
+    #Drops the results values and the name
     temptDataFrame = dataFrame.drop(["Country (Full Name)", "Life satisfaction - Total (AVSCORE)"], axis=1)
 
+    #number of rows in the given data Dataframe
     numberOfRows = len(list((dataFrame.index)))
 
+    #Adds all the items in xList to the masterDataFrame
     for item in xList:
         temptDataFrame = temptDataFrame.append({'Gross Domestic Product per Capita (USD)': item}, ignore_index=True)
 
+    #number of rows in the new combined dataFrame
     numberOfValueRows = len(list((temptDataFrame.index)))
 
+    #All of the "inputs"
     GDPValues = list(dataFrame["Gross Domestic Product per Capita (USD)"])
-
     for item in xList:
             GDPValues.append(float(item))
 
+    #Adds the min and max input to graph the linear regression line later
     temptDataFrame = temptDataFrame.append({'Gross Domestic Product per Capita (USD)': max(GDPValues)}, ignore_index=True)
     temptDataFrame = temptDataFrame.append({'Gross Domestic Product per Capita (USD)': min(GDPValues)}, ignore_index=True)
 
+    #Total number of items in the final dataFrame
     temptColumnList = list(temptDataFrame.columns)
 
-    num_pipeline = Pipeline([('imputer', SimpleImputer(strategy="median"))
-                             #   , ('std_scaler', StandardScaler())
-                             ])
+    #Constructs a pipeline to replace all the blank values with the median in the column and to scale some of the value down
+    num_pipeline = Pipeline([('imputer', SimpleImputer(strategy="median")), ('std_scaler', StandardScaler())])
     full_pipeline = ColumnTransformer([("num", num_pipeline, temptColumnList)])
 
+    #Applies the pipeline to all of the items in dataFrame
     transformedPipeline = pd.DataFrame(data=full_pipeline.fit_transform(temptDataFrame), columns=temptColumnList)
 
+    #Seperate the dataFrame back into its three parts
     lineDataFrame = transformedPipeline.iloc[numberOfValueRows:]
     xDataFrame = transformedPipeline.iloc[numberOfRows:numberOfValueRows]
     temptDataFrame = transformedPipeline.iloc[0:numberOfRows]
 
+    #Forms the linear regression model
     linearRegression = LinearRegression()
     linearRegression.fit(X=temptDataFrame, y=resultValues)
 
     ylist = []
 
+    #Stores the model's prediction for the xlist inputs
     for index in range(0, len(list(xDataFrame.index))):
         ylist.append(linearRegression.predict(xDataFrame.iloc[[index]]))
 
+    #Gets the model's prediction to the graph the line
     xLineList = [max(GDPValues), min(GDPValues)]
     yLineList = []
 
@@ -215,51 +223,53 @@ def linearRegression(dataFrame, xList=None):
         yLineList.append(linearRegression.predict(lineDataFrame.iloc[[index]]))
 
     graphingTheData(dataFrame, xList, ylist, xLineList, yLineList)
-import numpy as np
+
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
-import matplotlib.transforms as mtransforms
 def graphingTheData(dataframe, xList=None, yList=None, xLineList=None, yLineList=None):
+    #Formatting for Graph
     font = {'family': 'DejaVu Sans','size': 8}
-
     plt.rc('font', **font)
 
+    #Shift the texts so that you can see it better
     YSHIFT = .03
     XSHIFT = 150
 
+    #Creating the figure
     fig, ax = plt.subplots()
+
+    #Adding the given scatter plot
     ax.scatter(dataframe["Gross Domestic Product per Capita (USD)"], dataframe["Life satisfaction - Total (AVSCORE)"], c='Blue')
 
+    #Adding the names of the countries to the graph
     for index in range(0, len(dataframe.index)):
         plt.annotate(dataframe.at[list(dataframe.index)[index], 'Country (Full Name)'], (
             dataframe.at[list(dataframe.index)[index], 'Gross Domestic Product per Capita (USD)'] + XSHIFT,
             dataframe.at[list(dataframe.index)[index], 'Life satisfaction - Total (AVSCORE)'] + YSHIFT))
 
+    #Adding the regression linear
     line = mlines.Line2D(xdata=xLineList, ydata=yLineList, color='Green')
     ax.add_line(line)
 
+    #Adding the predicted values
     ax.scatter(xList, yList, c="Red")
 
+    #Added the coordinates for the predicted values
     for index in range(0, len(xList)):
         plt.annotate(("(" + str(xList[index]) +", " + str(yList[index]) +")"), (xList[index] + XSHIFT, yList[index] + YSHIFT))
 
+    #Labeling and the titling the graph
     plt.title('Comparing a Country\'s Life Satisfaction to their Gross Domestic Product per Capita')
     plt.xlabel('Gross Domestic Product per Capita (USD)')
     plt.ylabel('Life satisfaction - Total (AVSCORE)')
 
     plt.show()
 
-def arrayToDataFrame(array, columnList, names):
-    dataFrameFilledIn = pd.DataFrame(data=array, columns=columnList)
-    dataFrameFilledIn.insert(0, "Country (Full Name)", names)
-
-    return dataFrameFilledIn
-
-
 def main():
     print(
         "Input can only take integers and floats. You can add multiple numbers at a time by seperating them with commas")
     print("Example: \"50000, 42000, 1300.0\"", "\n")
+    print("(27000 (Cypriot) is already added) )")
 
     stopLoop = False
     xList = [27000]
@@ -282,7 +292,8 @@ def main():
 
     singleVariableModel = True
 
-    print("Form a Linear Regression Model based on a single varaible? (True/T or Flase/F)")
+    print("Form a Linear Regression Model based on a single variable? (True/T or Flase/F)")
+    print("(I would suggest single variable to start with)")
     while stopLoop:
         booleanValue = raw_input("User Input: ").strip().lower()
 
@@ -296,30 +307,11 @@ def main():
             print("\"" + str(booleanValue) + "\" is not an acceptable input. Please try again.", "\n")
 
     if singleVariableModel:
-        print("Single Variable")
         dataSet = singleVaribleModel(readCleanedCombinedCSVFile())
     else:
-        print("Multiple Variable")
         dataSet = readCleanedCombinedCSVFile()
 
     linearRegression(dataSet, xList)
 
-    """
-    columnList = list(dataSet.columns)
-    names = dataSet["Country (Full Name)"].tolist()
-    GDPValues = list(dataSet["Gross Domestic Product per Capita (USD)"])
-
-    graphingTheData(dataSet)
-
-    linearRegression(dataSet, GDPValues, xList)
-
-    singleOrMultiple = input("Single or Multiple Linear Regressoin (Single or Multiple): ")
-
-    if singleOrMultiple.lower() == "single":
-        print("There")
-    else:
-        print("Hello")
-        
-    """
 if __name__ == "__main__":
     main()
