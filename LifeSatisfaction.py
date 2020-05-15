@@ -1,3 +1,4 @@
+import numpy
 import pandas as pd
 import matplotlib.pyplot as plt
 from pip._vendor.distlib.compat import raw_input
@@ -168,12 +169,23 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 from sklearn.compose import ColumnTransformer
 def linearRegression(dataFrame, xList=None):
-    print(list(dataFrame.columns))
-
     resultValues = list(dataFrame["Life satisfaction - Total (AVSCORE)"])
     temptDataFrame = dataFrame.drop(["Country (Full Name)", "Life satisfaction - Total (AVSCORE)"], axis=1)
 
-    print(list(temptDataFrame.columns))
+    numberOfRows = len(list((dataFrame.index)))
+
+    for item in xList:
+        temptDataFrame = temptDataFrame.append({'Gross Domestic Product per Capita (USD)': item}, ignore_index=True)
+
+    numberOfValueRows = len(list((temptDataFrame.index)))
+
+    GDPValues = list(dataFrame["Gross Domestic Product per Capita (USD)"])
+
+    for item in xList:
+            GDPValues.append(float(item))
+
+    temptDataFrame = temptDataFrame.append({'Gross Domestic Product per Capita (USD)': max(GDPValues)}, ignore_index=True)
+    temptDataFrame = temptDataFrame.append({'Gross Domestic Product per Capita (USD)': min(GDPValues)}, ignore_index=True)
 
     temptColumnList = list(temptDataFrame.columns)
 
@@ -182,48 +194,38 @@ def linearRegression(dataFrame, xList=None):
                              ])
     full_pipeline = ColumnTransformer([("num", num_pipeline, temptColumnList)])
 
-    transformedPipeline = full_pipeline.fit_transform(temptDataFrame)
+    transformedPipeline = pd.DataFrame(data=full_pipeline.fit_transform(temptDataFrame), columns=temptColumnList)
 
-    Cypriot = 27000
-
-    """
-    lsValues = list(dataFrame["Life satisfaction - Total (AVSCORE)"])
-
-    rowBefore = len(list(dataFrame.index))
-
-    Cypriot = 27000
-
-    dataFrame = dataFrame.append({'Gross Domestic Product per Capita (USD)': Cypriot}, ignore_index=True)
-
-    rowAfter = len(list(dataFrame.index))
-
-    print(dataFrame.tail())
-
-    print("LSValues: ", lsValues)
-    """
+    lineDataFrame = transformedPipeline.iloc[numberOfValueRows:]
+    xDataFrame = transformedPipeline.iloc[numberOfRows:numberOfValueRows]
+    temptDataFrame = transformedPipeline.iloc[0:numberOfRows]
 
     linearRegression = LinearRegression()
-    linearRegression.fit(X=transformedPipeline, y=resultValues)
+    linearRegression.fit(X=temptDataFrame, y=resultValues)
 
     ylist = []
 
-    for item in xList:
-        ylist.append(linearRegression.predict(full_pipeline.fit_transform(pd.DataFrame(pd.np.array([float(item)]), columns=temptColumnList))))
+    for index in range(0, len(list(xDataFrame.index))):
+        ylist.append(linearRegression.predict(xDataFrame.iloc[[index]]))
 
-    graphingTheData(dataFrame, xList, ylist, linearRegression)
+    xLineList = [max(GDPValues), min(GDPValues)]
+    yLineList = []
 
+    for index in range(0, len(list(lineDataFrame.index))):
+        yLineList.append(linearRegression.predict(lineDataFrame.iloc[[index]]))
+
+    graphingTheData(dataFrame, xList, ylist, xLineList, yLineList)
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import matplotlib.transforms as mtransforms
-def graphingTheData(dataframe, xList=None, yList=None, model=None):
-    font = {'family': 'normal',
-            'size': 8}
+def graphingTheData(dataframe, xList=None, yList=None, xLineList=None, yLineList=None):
+    font = {'family': 'DejaVu Sans','size': 8}
+
+    plt.rc('font', **font)
 
     YSHIFT = .03
     XSHIFT = 150
-
-    plt.rc('font', **font)
 
     fig, ax = plt.subplots()
     ax.scatter(dataframe["Gross Domestic Product per Capita (USD)"], dataframe["Life satisfaction - Total (AVSCORE)"], c='Blue')
@@ -233,45 +235,19 @@ def graphingTheData(dataframe, xList=None, yList=None, model=None):
             dataframe.at[list(dataframe.index)[index], 'Gross Domestic Product per Capita (USD)'] + XSHIFT,
             dataframe.at[list(dataframe.index)[index], 'Life satisfaction - Total (AVSCORE)'] + YSHIFT))
 
-    #Line is currently broken
-   # line = mlines.Line2D([0, (model.intercept_ + 0 * model.coef_)], [54000, (model.intercept_ + 54000 * model.coef_)], color='Green')
+    line = mlines.Line2D(xdata=xLineList, ydata=yLineList, color='Green')
+    ax.add_line(line)
 
     ax.scatter(xList, yList, c="Red")
 
     for index in range(0, len(xList)):
         plt.annotate(("(" + str(xList[index]) +", " + str(yList[index]) +")"), (xList[index] + XSHIFT, yList[index] + YSHIFT))
 
-   # transform = ax.transAxes
-    #line.set_transform(transform)
-    #ax.add_line(line)
-
-    plt.title('Comparing a country\'s Life Satisfaction to their Gross Domestic Product per Capita')
+    plt.title('Comparing a Country\'s Life Satisfaction to their Gross Domestic Product per Capita')
     plt.xlabel('Gross Domestic Product per Capita (USD)')
     plt.ylabel('Life satisfaction - Total (AVSCORE)')
 
     plt.show()
-
-    """
-
-    # Add given Data Points
-    #plt.plot.scatter(x='Gross Domestic Product per Capita (USD)', y='Life satisfaction - Total (AVSCORE)',
-                           color='DarkBlue')
-
-    #Add Names to given Data Points
-    
-
-    #Add Regression line
-
-    #Add predicted Data Points
-    plt.plot.scatter(x=xList, y=yList, color='Black')
-
-    plt.title('Life Satisfaction V GDP')
-    plt.xlabel('GDP per Captia')
-    plt.ylabel('Life Satisfaction - Total (AVSCORE)')
-
-    plt.show()
-
-    """
 
 def arrayToDataFrame(array, columnList, names):
     dataFrameFilledIn = pd.DataFrame(data=array, columns=columnList)
@@ -319,7 +295,12 @@ def main():
         else:
             print("\"" + str(booleanValue) + "\" is not an acceptable input. Please try again.", "\n")
 
-    dataSet = singleVaribleModel(readCleanedCombinedCSVFile())
+    if singleVariableModel:
+        print("Single Variable")
+        dataSet = singleVaribleModel(readCleanedCombinedCSVFile())
+    else:
+        print("Multiple Variable")
+        dataSet = readCleanedCombinedCSVFile()
 
     linearRegression(dataSet, xList)
 
