@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+from pip._vendor.distlib.compat import raw_input
 
 
 def readWEOFile():
@@ -70,35 +71,33 @@ def importDataFiles():
             dataFrame.iat[x, y] = float(str(dataFrame.iat[x, y]).replace(",", ""))
 
     # Writes the single DataFrame into a file for easier acess
-    dataFrame.to_csv("combinedData(Backup).csv", index=False)
+    dataFrame.to_csv("combinedData.csv", index=False)
 
     return dataFrame
 
-
 # Reads the combinedDataFile for easier access
-def readCleanCSVFile():
+def readCombinedCSVFile():
     return pd.read_csv("combinedData.csv")
+
 
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 from sklearn.compose import ColumnTransformer
-def cleanUpData():
-    dataFrame = readCleanCSVFile()
-
-    print("Total Countries: ", len(list(dataFrame.index)))
+def cleanUpCombinedData():
+    dataFrame = readCombinedCSVFile()
 
     removeList = []
 
+    #Check each row to see if more than half of its columns are filled with "NaN" or blank values
+    #If so, the row is add to the removeList (latered to be dropped from the dataFrame)
     for rowIndex in dataFrame.index:
         totalNan = 0
 
         for columnIndex in range(0, len(list(dataFrame.columns))):
-            #print(dataFrame.iat[rowIndex, columnIndex])
-            if str(dataFrame.iat[rowIndex, columnIndex]).lower() == "nan" or str(dataFrame.iat[rowIndex, columnIndex]).lower() == "":
+            if str(dataFrame.iat[rowIndex, columnIndex]).lower() == "nan" or str(
+                    dataFrame.iat[rowIndex, columnIndex]).lower() == "":
                 totalNan += 1
-
-        # print(str(dataFrame.iat[rowIndex, 0]), " - ", totalNan, " - ", (.5 * len(list(dataFrame.columns))))
 
         if (totalNan > (.5 * len(list(dataFrame.columns)))):
             removeList.insert(0, rowIndex)
@@ -106,10 +105,13 @@ def cleanUpData():
     for item in removeList:
         dataFrame = dataFrame.drop(item)
 
-    print("Total Counrties: ", len(list(dataFrame.index)), "\n")
-
+    #Making sure the removeList is now completely empty
     removeList = []
-    GDPIQR = dataFrame["Gross Domestic Product per Capita (USD)"].quantile(.75) - dataFrame["Gross Domestic Product per Capita (USD)"].quantile(.25)
+
+    #Detects for outliers in the GDP column using the IQR
+    #If there is an outlier, the program will drop that row
+    GDPIQR = dataFrame["Gross Domestic Product per Capita (USD)"].quantile(.75) - dataFrame[
+        "Gross Domestic Product per Capita (USD)"].quantile(.25)
     GDPmedian = dataFrame["Gross Domestic Product per Capita (USD)"].median()
 
     for index in dataFrame.index:
@@ -121,7 +123,11 @@ def cleanUpData():
     for item in removeList:
         dataFrame = dataFrame.drop([item])
 
+    #Again, making sure the removeList is now completely empty
     removeList = []
+
+    #Detects for outliers in the LS (ACSCORE) column using the IQR
+    #If there is an outlier, the program will drop that row
     LSIQR = dataFrame["Life satisfaction - Total (AVSCORE)"].quantile(.75) - dataFrame[
         "Life satisfaction - Total (AVSCORE)"].quantile(.25)
     LSmedian = dataFrame["Life satisfaction - Total (AVSCORE)"].median()
@@ -135,11 +141,14 @@ def cleanUpData():
     for item in removeList:
         dataFrame = dataFrame.drop([item])
 
-    print("Total Counrties: ", len(list(dataFrame.index)), "\n")
-
-    #graphingTheData(dataFrame)
+    #Saves the data to a CSV file for easier access
+    dataFrame.to_csv("filteredData.csv", index=False)
 
     return dataFrame
+
+def readCleanedCombinedCSVFile():
+    return pd.read_csv("filteredData.csv")
+
 
 def pipeline(dataFrame):
     columnList = list(dataFrame.columns)
@@ -150,46 +159,59 @@ def pipeline(dataFrame):
                              ])
     full_pipeline = ColumnTransformer([("num", num_pipeline, columnList)])
     transformedPipeline = full_pipeline.fit_transform(dataFrame)
-    #transformedPipeline.to_csv("fittedData.csv", index=False)
+    # transformedPipeline.to_csv("fittedData.csv", index=False)
 
     return transformedPipeline
+
 
 def graphingTheData(dataframe, xList=None, yList=None, line=None):
     worldData = dataframe
 
-    #Add given Data Points
+    # Add given Data Points
     worldData.plot.scatter(x='Gross Domestic Product per Capita (USD)', y='Life satisfaction - Total (AVSCORE)',
                            color='DarkBlue')
 
-    #Add linearRegressionLine
+    # Add linearRegressionLine
 
-    #Add predicted values
-    #for index in range(0, len(xList)):
-
-
+    # Add predicted values
+    # for index in range(0, len(xList)):
 
     for index in range(0, len(worldData.index)):
         plt.annotate(worldData.at[list(worldData.index)[index], 'Country (Full Name)'], (
-        worldData.at[list(worldData.index)[index], 'Gross Domestic Product per Capita (USD)'],
-        worldData.at[list(worldData.index)[index], 'Life satisfaction - Total (AVSCORE)']))
+            worldData.at[list(worldData.index)[index], 'Gross Domestic Product per Capita (USD)'],
+            worldData.at[list(worldData.index)[index], 'Life satisfaction - Total (AVSCORE)']))
+
+    GDPValues = max(list(worldData["Gross Domestic Product per Capita (USD)"]))
+
+    plt.plot(list(worldData["Gross Domestic Product per Capita (USD)"]),
+             list(worldData["Life satisfaction - Total (AVSCORE)"]), color="DarkRed")
+
+    plt.title('Life Satisfaction V GDP')
+    plt.xlabel('GDP per Captia')
+    plt.ylabel('Life Satisfaction - Total (AVSCORE)')
 
     plt.show()
 
     # What I Still Need to Do
     # User input function
 
+
 from sklearn.linear_model import LinearRegression
-def linearRegression(dataFrame, GDPValues):
+
+
+def linearRegression(dataFrame, GDPValues, xList=None):
     print(GDPValues)
 
     columnList = list(dataFrame.columns)
     columnList.remove("Country (Full Name)")
 
     num_pipeline = Pipeline([('imputer', SimpleImputer(strategy="median"))
-                             #   , ('std_scaler', StandardScaler())
+                                , ('std_scaler', StandardScaler())
                              ])
     full_pipeline = ColumnTransformer([("num", num_pipeline, columnList)])
     transformedPipeline = full_pipeline.fit_transform(dataFrame)
+
+    lsValues = list(dataFrame["Life satisfaction - Total (AVSCORE)"])
 
     rowBefore = len(list(dataFrame.index))
 
@@ -201,18 +223,23 @@ def linearRegression(dataFrame, GDPValues):
 
     print(dataFrame.tail())
 
-    linearRegression = LinearRegression()
-    linearRegression.fit(transformedPipeline, GDPValues)
+    print("LSValues: ", lsValues)
 
+    linearRegression = LinearRegression()
+    linearRegression.fit(transformedPipeline, lsValues)
 
     for index in range(rowBefore, rowAfter):
         prediction = linearRegression.predict(
-            full_pipeline.fit(
+            full_pipeline.transform(
                 dataFrame.loc[dataFrame['Gross Domestic Product per Capita (USD)'] == Cypriot]
             ))
         print("Predictions:", str(prediction))
 
-    #return prediction
+    print(linearRegression.coef_)
+    print(linearRegression.intercept_)
+
+    return prediction, linearRegression
+
 
 def arrayToDataFrame(array, columnList, names):
     dataFrameFilledIn = pd.DataFrame(data=array, columns=columnList)
@@ -221,15 +248,58 @@ def arrayToDataFrame(array, columnList, names):
     return dataFrameFilledIn
 
 def main():
-    print()
-    # importDataFiles()
-    dataSet = cleanUpData()
+    print("Input can only take integers and floats. You can add multiple numbers at a time by seperating them with commas")
+    print("Example: \"50000, 42000, 1300.0\"", "\n")
 
+    stopLoop = False
+    xList = []
+
+    print("Input integers and floats to feed into the model. Type \"Predict\" or \"Run\" to continue")
+    while not stopLoop:
+        xListValue = raw_input("User Input: ").strip().lower()
+
+        if xListValue == "predict" or xListValue == "run":
+            stopLoop = True
+        else:
+            for variables in xListValue.split(","):
+                try:
+                    xList.append(float(variables.strip()))
+                except ValueError:
+                    print("\"" + str(variables.strip()) + "\" is not an acceptable input. Please try again.")
+        print()
+
+    print("Input List: " + str(xList), "\n")
+
+    singleVariableModel = True
+
+    print("Form a Linear Regression Model based on a single varaible? (True/T or Flase/F)")
+    while stopLoop:
+        booleanValue = raw_input("User Input: ").strip().lower()
+
+        if booleanValue == "true" or booleanValue == "t":
+            singleVariableModel = True
+            stopLoop = False
+        elif booleanValue == "false" or booleanValue == "f":
+            singleVariableModel = False
+            stopLoop = False
+        else:
+            print("\"" + str(booleanValue) + "\" is not an acceptable input. Please try again.", "\n")
+
+    dataSet = readCleanedCombinedCSVFile()
     columnList = list(dataSet.columns)
     names = dataSet["Country (Full Name)"].tolist()
     GDPValues = list(dataSet["Gross Domestic Product per Capita (USD)"])
 
-    linearRegression(dataSet, GDPValues)
+    graphingTheData(dataSet)
+
+    linearRegression(dataSet, GDPValues, xList)
+
+    singleOrMultiple = input("Single or Multiple Linear Regressoin (Single or Multiple): ")
+
+    if singleOrMultiple.lower() == "single":
+        print("There")
+    else:
+        print("Hello")
 
 if __name__ == "__main__":
     main()
